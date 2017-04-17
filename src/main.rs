@@ -60,7 +60,7 @@ fn build_workers(config: &Yaml) -> Vec<Worker> {
             match worker_type {
                 "path" => {
                     // special key that points to the app path
-                    path = worker_type;
+                    path = worker_config.as_str().unwrap();
                     None
                 },
                 "resque" => {

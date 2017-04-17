@@ -28,6 +28,13 @@ impl Worker {
         }.to_string()
     }
 
+    pub fn path(&self) -> String {
+        match *self {
+            Worker::Resque { ref path, .. } => path,
+            Worker::Sidekiq { ref path, .. } => path
+        }.to_string()
+    }
+
     pub fn kind(&self) -> String {
         match *self {
             Worker::Resque { .. } => "resque",
