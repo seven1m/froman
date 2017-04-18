@@ -7,6 +7,7 @@ use workers::*;
 
 use std::io::prelude::*;
 use std::fs::File;
+use std::path::Path;
 use std::process::exit;
 use clap::App;
 use yaml_rust::{YamlLoader, Yaml};
@@ -23,13 +24,14 @@ fn main() {
         .args_from_usage("-r, --redis=[URL] 'Specify Redis URL (default: redis://127.0.0.1/)'")
         .get_matches();
 
-    let config = matches.value_of("config").unwrap_or(DEFAULT_CONFIG);
+    let config_path = matches.value_of("config").unwrap_or(DEFAULT_CONFIG);
     let redis_url = matches.value_of("redis").unwrap_or(DEFAULT_REDIS_URL);
 
-    let config = read_config(&config);
+    let config = read_config(&config_path);
     let command_template = config["command_template"].as_str().expect("config 'command_template' key not found!");
     let workers = build_workers(&config);
-    runner::run(&workers, &command_template, &redis_url);
+    let config_dir = Path::new(&config_path).parent().unwrap().to_str().unwrap();
+    runner::run(&workers, &config_dir, &command_template, &redis_url);
 }
 
 fn read_config(path: &str) -> Yaml {
@@ -51,11 +53,11 @@ fn read_config(path: &str) -> Yaml {
     }
 }
 
-fn build_workers(config: &Yaml) -> Vec<Worker> {
+fn build_workers(config: &Yaml) -> Vec<Box<Worker>> {
     let apps = config["apps"].as_hash().expect("config 'apps' key not found!");
     let mut path = "";
-    apps.iter().flat_map(|(app, app_config)| -> Vec<Worker> {
-        app_config.as_hash().unwrap().iter().filter_map(|(worker_type, worker_config)| {
+    apps.iter().flat_map(|(app, app_config)| -> Vec<Box<Worker>> {
+        app_config.as_hash().unwrap().iter().filter_map(|(worker_type, worker_config)| -> Option<Box<Worker>> {
             let worker_type = worker_type.as_str().unwrap();
             match worker_type {
                 "path" => {
@@ -64,20 +66,20 @@ fn build_workers(config: &Yaml) -> Vec<Worker> {
                     None
                 },
                 "resque" => {
-                    Some(Worker::Resque {
+                    Some(Box::new(Resque {
                         app: app.as_str().unwrap().to_string(),
                         path: path.to_string(),
                         namespace: worker_config["namespace"].as_str().unwrap().to_string(),
                         command: worker_config["command"].as_str().unwrap().to_string()
-                    })
+                    }))
                 },
                 "sidekiq" => {
-                    Some(Worker::Sidekiq {
+                    Some(Box::new(Sidekiq {
                         app: app.as_str().unwrap().to_string(),
                         path: path.to_string(),
                         namespace: worker_config["namespace"].as_str().unwrap().to_string(),
                         command: worker_config["command"].as_str().unwrap().to_string()
-                    })
+                    }))
                 },
                 _ => None
             }
