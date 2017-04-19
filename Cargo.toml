@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Tim Morgan <tim@timmorgan.org>"]
 
 [dependencies]
+chrono = "0.3"
 clap = "2.11.0"
 nix = "0.8.0"
 redis = "0.7.0"
