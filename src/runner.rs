@@ -54,7 +54,7 @@ pub fn run(workers: &Vec<Box<Worker>>, config_dir: &str, command_template: &str,
                             }
                         }
                         None => {
-                            let terminate_at = now + chrono::Duration::seconds(10);
+                            let terminate_at = now + chrono::Duration::seconds(30);
                             println!("setting terminate_at to {:?}", terminate_at);
                             running_process.terminate_at = Some(terminate_at);
                         }
