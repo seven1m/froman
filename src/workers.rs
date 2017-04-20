@@ -24,26 +24,6 @@ pub trait Worker {
         format!("{}: {}", self.app(), self.kind())
     }
 
-    fn spawn(&self, command_template: &str, config_dir: &str) -> Child {
-        let (program, args) = self.command_binary_and_args(command_template);
-        println!("spawn process {} with args {:?} at path {}", &program, &args, &config_dir);
-        //let program = "sh";
-        //let args = vec!["-c".to_string(), command_template.replace("%s", self.command())];
-        //println!("spawn process sh with args {:?} at path {}", &args, &config_dir);
-        Command::new(&program)
-            .args(&args)
-            .stdin(Stdio::piped())
-            //.stdout(Stdio::piped())
-            .current_dir(self.absolute_path(config_dir))
-            .env_remove("PATH") // rvm won't update the current ruby version if a ruby version is already present in the PATH
-            .env_remove("RUBY_VERSION")
-            .env_remove("RBENV_VERSION")
-            .env_remove("RBENV_GEMSET_ALREADY")
-            .env_remove("RBENV_DIR")
-            .spawn()
-            .expect(&format!("Failed to execute command {}", self.command()))
-    }
-
     fn absolute_path(&self, config_dir: &str) -> String {
         if self.path().starts_with("/") {
             self.path().to_string()
