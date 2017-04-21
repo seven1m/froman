@@ -68,7 +68,7 @@ impl Worker for Sidekiq {
     fn work_being_done(&self, redis_conn: &redis::Connection) -> bool {
         let processes: Vec<String> = redis_conn.smembers(format!("{}:processes", self.namespace)).unwrap();
         let counts: Vec<i32> = processes.iter().map(|p| {
-            redis_conn.hget(format!("{}:{}", self.namespace, p), "busy").unwrap()
+            redis_conn.hget(format!("{}:{}", self.namespace, p), "busy").unwrap_or(0)
         }).collect();
         counts.iter().fold(0i32, |a, &b| a + b) > 0
     }
