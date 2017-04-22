@@ -1,10 +1,8 @@
 extern crate redis;
 extern crate chrono;
 extern crate nix;
-extern crate nonblock;
 
 use workers::*;
-
 use std::thread::sleep;
 use std::time::Duration;
 use std::collections::HashMap;
@@ -12,14 +10,12 @@ use std::collections::hash_map::Entry;
 use std::process::{Command, Stdio, Child, ChildStdout, ChildStderr};
 use std::io::Read;
 use std::path::Path;
+use std::thread;
 use self::chrono::prelude::*;
 use self::nix::sys::signal::{kill, Signal};
-use self::nonblock::NonBlockingReader;
 
 struct RunningProcess {
     process: Child,
-    stdout: NonBlockingReader<ChildStdout>,
-    stderr: NonBlockingReader<ChildStderr>,
     terminate_at: Option<DateTime<Local>>
 }
 
@@ -31,29 +27,31 @@ pub fn run(workers: &Vec<Box<Worker>>, config_dir: &str, command_template: &str,
     loop {
         for worker in workers {
             let key = worker.key();
-            match processes.entry(key.clone()) {
-                Entry::Occupied(mut entry) => {
-                    let mut buf = String::new();
-                    let mut stdout = &mut entry.into_mut().stdout;
-                    stdout.read_available_to_string(&mut buf).unwrap();
-                    if buf.len() > 0 {
-                        print!("{}", buf);
-                    }
-                },
-                _ => {}
-            }
             if worker.work_to_do(&redis_conn) || worker.work_being_done(&redis_conn) {
                 if processes.contains_key(&key) {
                     let mut running_process = processes.get_mut(&key).unwrap();
                     running_process.terminate_at = None
                 } else {
                     let mut process = spawn(worker, command_template, config_dir);
-                    let mut stdout = NonBlockingReader::from_fd(process.stdout.take().unwrap()).unwrap();
-                    let mut stderr = NonBlockingReader::from_fd(process.stderr.take().unwrap()).unwrap();
+                    let mut stdout = process.stdout.take().unwrap();
+                    let mut stderr = process.stderr.take().unwrap();
+                    thread::spawn(move || {
+                        loop {
+                            let mut buf = [0; 1000];
+                            match stdout.read(&mut buf) {
+                                Ok(count) => {
+                                    if count > 0 {
+                                        print!("{}", String::from_utf8_lossy(&buf));
+                                    } else {
+                                        break;
+                                    }
+                                }
+                                Err(_) => break
+                            }
+                        }
+                    });
                     let running_process = RunningProcess {
                         process: process,
-                        stdout: stdout,
-                        stderr: stderr,
                         terminate_at: None
                     };
                     processes.insert(key, running_process);
