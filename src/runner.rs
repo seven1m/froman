@@ -33,23 +33,8 @@ pub fn run(workers: &Vec<Box<Worker>>, config_dir: &str, command_template: &str,
                     running_process.terminate_at = None
                 } else {
                     let mut process = spawn(worker, command_template, config_dir);
-                    let mut stdout = process.stdout.take().unwrap();
-                    let mut stderr = process.stderr.take().unwrap();
-                    thread::spawn(move || {
-                        loop {
-                            let mut buf = [0; 1000];
-                            match stdout.read(&mut buf) {
-                                Ok(count) => {
-                                    if count > 0 {
-                                        print!("{}", String::from_utf8_lossy(&buf));
-                                    } else {
-                                        break;
-                                    }
-                                }
-                                Err(_) => break
-                            }
-                        }
-                    });
+                    pipe_output(process.stdout.take().unwrap());
+                    pipe_output(process.stderr.take().unwrap());
                     let running_process = RunningProcess {
                         process: process,
                         terminate_at: None
@@ -101,4 +86,22 @@ fn spawn(worker: &Box<Worker>, command_template: &str, config_dir: &str) -> Chil
         .env_remove("RBENV_DIR")
         .spawn()
         .expect("failure")
+}
+
+fn pipe_output<T: 'static + Read + Send>(mut out: T) {
+    thread::spawn(move || {
+        loop {
+            let mut buf = [0; 1000];
+            match out.read(&mut buf) {
+                Ok(count) => {
+                    if count > 0 {
+                        print!("{}", String::from_utf8_lossy(&buf));
+                    } else {
+                        break;
+                    }
+                }
+                Err(_) => break
+            }
+        }
+    });
 }
