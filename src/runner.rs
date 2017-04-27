@@ -1,7 +1,3 @@
-extern crate redis;
-extern crate chrono;
-extern crate nix;
-
 use workers::*;
 use std::thread::sleep;
 use std::time::Duration;
@@ -11,8 +7,10 @@ use std::process::{Command, Stdio, Child, ChildStdout, ChildStderr};
 use std::io::Read;
 use std::path::Path;
 use std::thread;
-use self::chrono::prelude::*;
-use self::nix::sys::signal::{kill, Signal};
+use redis;
+use chrono;
+use chrono::prelude::*;
+use nix::sys::signal::{kill, Signal};
 
 struct RunningProcess {
     process: Child,
@@ -22,10 +20,11 @@ struct RunningProcess {
 pub fn run(workers: &Vec<Box<Worker>>, config_dir: &str, command_template: &str, redis_url: &str) {
     let interval = Duration::from_secs(2);
     let redis = redis::Client::open(redis_url).unwrap();
-    let redis_conn = redis.get_connection().unwrap();
+    let redis_conn = redis.get_connection().expect("Redis connection failed. Is Redis running?");
     let mut processes: HashMap<String, RunningProcess> = HashMap::new();
+    let label_size = get_label_size(&workers);
     loop {
-        for worker in workers {
+        for (worker_index, worker) in workers.iter().enumerate() {
             let key = worker.key();
             if worker.work_to_do(&redis_conn) || worker.work_being_done(&redis_conn) {
                 if processes.contains_key(&key) {
@@ -33,8 +32,8 @@ pub fn run(workers: &Vec<Box<Worker>>, config_dir: &str, command_template: &str,
                     running_process.terminate_at = None
                 } else {
                     let mut process = spawn(worker, command_template, config_dir);
-                    pipe_output(process.stdout.take().unwrap());
-                    pipe_output(process.stderr.take().unwrap());
+                    pipe_output(process.stdout.take().unwrap(), worker.app(), label_size);
+                    pipe_output(process.stderr.take().unwrap(), worker.app(), label_size);
                     let running_process = RunningProcess {
                         process: process,
                         terminate_at: None
@@ -69,6 +68,10 @@ pub fn run(workers: &Vec<Box<Worker>>, config_dir: &str, command_template: &str,
     }
 }
 
+fn get_label_size(workers: &Vec<Box<Worker>>) -> usize {
+    workers.iter().map(|w| w.app().len()).max().unwrap()
+}
+
 fn spawn(worker: &Box<Worker>, command_template: &str, config_dir: &str) -> Child {
     let (program, args) = worker.command_binary_and_args(command_template);
     let path = Path::new(&worker.absolute_path(config_dir)).canonicalize().unwrap();
@@ -88,13 +91,15 @@ fn spawn(worker: &Box<Worker>, command_template: &str, config_dir: &str) -> Chil
         .expect("failure")
 }
 
-fn pipe_output<T: 'static + Read + Send>(mut out: T) {
+fn pipe_output<T: 'static + Read + Send>(mut out: T, label: &str, label_size: usize) {
+    let label = label.to_owned();
     thread::spawn(move || {
         loop {
             let mut buf = [0; 1000];
             match out.read(&mut buf) {
                 Ok(count) => {
                     if count > 0 {
+                        print!("{}: ", left_pad(&label, label_size));
                         print!("{}", String::from_utf8_lossy(&buf));
                     } else {
                         break;
@@ -104,4 +109,8 @@ fn pipe_output<T: 'static + Read + Send>(mut out: T) {
             }
         }
     });
+}
+
+fn left_pad(str: &str, length: usize) -> String {
+    " ".repeat(length - str.len()) + str
 }

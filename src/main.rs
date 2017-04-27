@@ -1,5 +1,8 @@
 extern crate clap;
 extern crate yaml_rust;
+extern crate redis;
+extern crate chrono;
+extern crate nix;
 
 mod runner;
 mod workers;
