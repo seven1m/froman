@@ -32,6 +32,7 @@ pub fn run(workers: &Vec<Box<Worker>>, config_dir: &str, command_template: &str,
                     let mut running_process = processes.get_mut(&key).unwrap();
                     running_process.terminate_at = None
                 } else {
+                    log(worker.app(), label_size, "STARTING\n");
                     let mut process = spawn(worker, command_template, config_dir);
                     pipe_output(process.stdout.take().unwrap(), worker.app(), label_size);
                     pipe_output(process.stderr.take().unwrap(), worker.app(), label_size);
@@ -60,7 +61,7 @@ pub fn run(workers: &Vec<Box<Worker>>, config_dir: &str, command_template: &str,
                     }
                 }
                 if remove {
-                    println!("stop process for {}", worker.app());
+                    log(worker.app(), label_size, "STOPPING\n");
                     processes.remove(&key);
                 }
             }
@@ -83,7 +84,6 @@ fn spawn(worker: &Box<Worker>, command_template: &str, config_dir: &str) -> Chil
         }
     };
     let path_str = path.to_str().unwrap();
-    println!("spawn program {} with args {:?} at path {}", &program, &args, path_str);
     Command::new(&program)
         .args(&args)
         .stdout(Stdio::piped())
@@ -106,8 +106,7 @@ fn pipe_output<T: 'static + Read + Send>(mut out: T, label: &str, label_size: us
             match out.read(&mut buf) {
                 Ok(count) => {
                     if count > 0 {
-                        print!("{}: ", left_pad(&label, label_size));
-                        print!("{}", String::from_utf8_lossy(&buf));
+                        log(&label, label_size, &String::from_utf8_lossy(&buf));
                     } else {
                         break;
                     }
@@ -116,6 +115,11 @@ fn pipe_output<T: 'static + Read + Send>(mut out: T, label: &str, label_size: us
             }
         }
     });
+}
+
+fn log(label: &str, label_size: usize, message: &str) {
+    print!("{}: ", left_pad(&label, label_size));
+    print!("{}", message);
 }
 
 fn left_pad(str: &str, length: usize) -> String {
