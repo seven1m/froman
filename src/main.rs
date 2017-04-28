@@ -33,7 +33,8 @@ fn main() {
     let config = read_config(&config_path);
     let command_template = config["command_template"].as_str().expect("config 'command_template' key not found!");
     let workers = build_workers(&config);
-    let config_dir = Path::new(&config_path).parent().unwrap().to_str().unwrap();
+    let mut config_dir = Path::new(&config_path).parent().unwrap().to_str().unwrap();
+    if config_dir.is_empty() { config_dir = "." }
     runner::run(&workers, &config_dir, &command_template, &redis_url);
 }
 

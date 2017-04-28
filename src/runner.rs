@@ -7,6 +7,7 @@ use std::process::{Command, Stdio, Child, ChildStdout, ChildStderr};
 use std::io::Read;
 use std::path::Path;
 use std::thread;
+use std::process;
 use redis;
 use chrono;
 use chrono::prelude::*;
@@ -74,7 +75,13 @@ fn get_label_size(workers: &Vec<Box<Worker>>) -> usize {
 
 fn spawn(worker: &Box<Worker>, command_template: &str, config_dir: &str) -> Child {
     let (program, args) = worker.command_binary_and_args(command_template);
-    let path = Path::new(&worker.absolute_path(config_dir)).canonicalize().unwrap();
+    let path = match Path::new(&worker.absolute_path(config_dir)).canonicalize() {
+        Ok(p) => p,
+        Err(_) => {
+            println!("Path `{}` could not be found!", config_dir);
+            process::exit(1);
+        }
+    };
     let path_str = path.to_str().unwrap();
     println!("spawn program {} with args {:?} at path {}", &program, &args, path_str);
     Command::new(&program)
