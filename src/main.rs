@@ -6,6 +6,7 @@ extern crate nix;
 
 mod runner;
 mod workers;
+mod colors;
 use workers::*;
 
 use std::io::prelude::*;

@@ -1,4 +1,5 @@
 use workers::*;
+use colors::*;
 use std::thread::sleep;
 use std::time::Duration;
 use std::collections::HashMap;
@@ -27,15 +28,16 @@ pub fn run(workers: &Vec<Box<Worker>>, config_dir: &str, command_template: &str,
     loop {
         for (worker_index, worker) in workers.iter().enumerate() {
             let key = worker.key();
+            let color = COLORS[worker_index % COLORS.len()];
             if worker.work_to_do(&redis_conn) || worker.work_being_done(&redis_conn) {
                 if processes.contains_key(&key) {
                     let mut running_process = processes.get_mut(&key).unwrap();
                     running_process.terminate_at = None
                 } else {
-                    log(worker.app(), label_size, "STARTING\n");
+                    log(worker.app(), label_size, color, "STARTING\n");
                     let mut process = spawn(worker, command_template, config_dir);
-                    pipe_output(process.stdout.take().unwrap(), worker.app(), label_size);
-                    pipe_output(process.stderr.take().unwrap(), worker.app(), label_size);
+                    pipe_output(process.stdout.take().unwrap(), worker.app(), label_size, color);
+                    pipe_output(process.stderr.take().unwrap(), worker.app(), label_size, color);
                     let running_process = RunningProcess {
                         process: process,
                         terminate_at: None
@@ -61,7 +63,7 @@ pub fn run(workers: &Vec<Box<Worker>>, config_dir: &str, command_template: &str,
                     }
                 }
                 if remove {
-                    log(worker.app(), label_size, "STOPPING\n");
+                    log(worker.app(), label_size, color, "STOPPING\n");
                     processes.remove(&key);
                 }
             }
@@ -98,15 +100,16 @@ fn spawn(worker: &Box<Worker>, command_template: &str, config_dir: &str) -> Chil
         .expect("failure")
 }
 
-fn pipe_output<T: 'static + Read + Send>(mut out: T, label: &str, label_size: usize) {
+fn pipe_output<T: 'static + Read + Send>(mut out: T, label: &str, label_size: usize, color: &str) {
     let label = label.to_owned();
+    let color = color.to_owned();
     thread::spawn(move || {
         loop {
             let mut buf = [0; 1000];
             match out.read(&mut buf) {
                 Ok(count) => {
                     if count > 0 {
-                        log(&label, label_size, &String::from_utf8_lossy(&buf));
+                        log(&label, label_size, &color, &String::from_utf8_lossy(&buf));
                     } else {
                         break;
                     }
@@ -117,8 +120,8 @@ fn pipe_output<T: 'static + Read + Send>(mut out: T, label: &str, label_size: us
     });
 }
 
-fn log(label: &str, label_size: usize, message: &str) {
-    print!("{}: ", left_pad(&label, label_size));
+fn log(label: &str, label_size: usize, color: &str, message: &str) {
+    print!("{}: ", colorize(&left_pad(&label, label_size), color));
     print!("{}", message);
 }
 
