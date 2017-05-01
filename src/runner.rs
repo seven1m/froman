@@ -9,6 +9,8 @@ use std::io::Read;
 use std::path::Path;
 use std::thread;
 use std::process;
+use std::io::prelude::*;
+use std::io;
 use redis;
 use chrono;
 use chrono::prelude::*;
@@ -105,7 +107,7 @@ fn pipe_output<T: 'static + Read + Send>(mut out: T, label: &str, label_size: us
     let color = color.to_owned();
     thread::spawn(move || {
         loop {
-            let mut buf = [0; 1000];
+            let mut buf = [0; 10000];
             match out.read(&mut buf) {
                 Ok(count) => {
                     if count > 0 {
@@ -123,6 +125,7 @@ fn pipe_output<T: 'static + Read + Send>(mut out: T, label: &str, label_size: us
 fn log(label: &str, label_size: usize, color: &str, message: &str) {
     print!("{}: ", colorize(&left_pad(&label, label_size), color));
     print!("{}", message);
+    io::stdout().flush().ok().expect("Could not flush stdout");
 }
 
 fn left_pad(str: &str, length: usize) -> String {
