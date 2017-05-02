@@ -1,5 +1,6 @@
 use workers::*;
 use colors::*;
+use config::*;
 use std::thread::sleep;
 use std::time::Duration;
 use std::collections::HashMap;
@@ -21,9 +22,9 @@ struct RunningProcess {
     terminate_at: Option<DateTime<Local>>
 }
 
-pub fn run(workers: &Vec<Box<Worker>>, config_dir: &str, command_template: &str, redis_url: &str) {
+pub fn run(workers: &Vec<Box<Worker>>, config: &Config) {
     let interval = Duration::from_secs(2);
-    let redis = redis::Client::open(redis_url).unwrap();
+    let redis = redis::Client::open(config.redis_url.as_str()).unwrap();
     let redis_conn = redis.get_connection().expect("Redis connection failed. Is Redis running?");
     let mut processes: HashMap<String, RunningProcess> = HashMap::new();
     let label_size = get_label_size(&workers);
@@ -37,7 +38,7 @@ pub fn run(workers: &Vec<Box<Worker>>, config_dir: &str, command_template: &str,
                     running_process.terminate_at = None
                 } else {
                     log(worker.app(), label_size, color, "STARTING\n");
-                    let mut process = spawn(worker, command_template, config_dir);
+                    let mut process = spawn(worker, &config.command_template, &config.dir);
                     pipe_output(process.stdout.take().unwrap(), worker.app(), label_size, color);
                     pipe_output(process.stderr.take().unwrap(), worker.app(), label_size, color);
                     let running_process = RunningProcess {
