@@ -19,14 +19,14 @@ use clap::App;
 use yaml_rust::{YamlLoader, Yaml};
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
-const DEFAULT_CONFIG: &'static str = "honcho.yml";
+const DEFAULT_CONFIG: &'static str = "froman.yml";
 const DEFAULT_REDIS_URL: &'static str = "redis://127.0.0.1/";
 
 fn main() {
     let matches = App::new("froman")
         .version(VERSION)
         .about("process manager for your dev environment")
-        .args_from_usage("-c, --config=[FILE] 'Use a custom config file (default: ./honcho.yml)'")
+        .args_from_usage("-c, --config=[FILE] 'Use a custom config file (default: ./froman.yml)'")
         .args_from_usage("-r, --redis=[URL] 'Specify Redis URL (default: redis://127.0.0.1/)'")
         .get_matches();
 
