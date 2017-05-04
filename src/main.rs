@@ -31,21 +31,21 @@ fn main() {
         .args_from_usage("-r, --redis=[URL] 'Specify Redis URL (default: redis://127.0.0.1/)'")
         .get_matches();
 
-    let dir = matches.value_of("config").unwrap_or(DEFAULT_CONFIG);
+    let config_path = matches.value_of("config").unwrap_or(DEFAULT_CONFIG);
     let redis_url = matches.value_of("redis").unwrap_or(DEFAULT_REDIS_URL);
-    let yaml_config = read_config(&dir);
+    let yaml_config = read_config(&config_path);
     let command_template = yaml_config["command_template"].as_str().expect("config 'command_template' key not found!");
+    let mut config_dir = Path::new(&config_path).parent().unwrap().to_str().unwrap();
+    if config_dir.is_empty() { config_dir = "." }
 
     let config = Config {
-        dir: dir.to_string(),
+        dir: config_dir.to_string(),
         command_template: command_template.to_string(),
         redis_url: redis_url.to_string()
     };
 
-    let workers = build_workers(&yaml_config);
-    let mut config_dir = Path::new(&dir).parent().unwrap().to_str().unwrap();
-    if config_dir.is_empty() { config_dir = "." }
-    runner::run(&workers, &config);
+    let mut workers = build_workers(&yaml_config);
+    runner::run(&mut workers, &config);
 }
 
 fn read_config(path: &str) -> Yaml {
