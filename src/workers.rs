@@ -1,8 +1,9 @@
-extern crate redis;
-extern crate cmdline_words_parser;
+use chrono;
+use chrono::prelude::*;
 
-use self::redis::Commands;
-use self::cmdline_words_parser::StrExt;
+use redis;
+use redis::Commands;
+use cmdline_words_parser::StrExt;
 use std::process::{Command, Stdio, Child};
 
 pub trait Worker {
@@ -12,6 +13,10 @@ pub trait Worker {
     fn kind(&self) -> &str;
     fn work_to_do(&self, &redis::Connection) -> bool;
     fn work_being_done(&self, &redis::Connection) -> bool;
+    fn process(&self) -> &Option<Child>;
+    fn terminate_at(&self) -> &Option<DateTime<Local>>;
+    fn set_process(&mut self, Option<Child>);
+    fn set_terminate_at(&mut self, Option<DateTime<Local>>);
 
     fn command_binary_and_args(&self, command_template: &str) -> (String, Vec<String>) {
         let mut command_to_parse = command_template.replace("%s", self.command());
@@ -31,13 +36,22 @@ pub trait Worker {
             format!("{}/{}", config_dir, self.path())
         }
     }
+
+    fn process_id(&self) -> u32 {
+        match *self.process() {
+            Some(ref process) => process.id(),
+            _ => 0u32
+        }
+    }
 }
 
 pub struct Sidekiq {
     pub app: String,
     pub path: String,
     pub namespace: String,
-    pub command: String
+    pub command: String,
+    pub process: Option<Child>,
+    pub terminate_at: Option<DateTime<Local>>
 }
 
 impl Worker for Sidekiq {
@@ -72,13 +86,31 @@ impl Worker for Sidekiq {
         }).collect();
         counts.iter().fold(0i32, |a, &b| a + b) > 0
     }
+
+    fn process(&self) -> &Option<Child> {
+        &self.process
+    }
+
+    fn terminate_at(&self) -> &Option<DateTime<Local>> {
+        &self.terminate_at
+    }
+
+    fn set_process(&mut self, process: Option<Child>) {
+        self.process = process;
+    }
+
+    fn set_terminate_at(&mut self, terminate_at: Option<DateTime<Local>>) {
+        self.terminate_at = terminate_at;
+    }
 }
 
 pub struct Resque {
     pub app: String,
     pub path: String,
     pub namespace: String,
-    pub command: String
+    pub command: String,
+    pub process: Option<Child>,
+    pub terminate_at: Option<DateTime<Local>>
 }
 
 impl Worker for Resque {
@@ -108,5 +140,21 @@ impl Worker for Resque {
 
     fn work_being_done(&self, _redis_conn: &redis::Connection) -> bool {
         false // no way to know if work is being done in Resque
+    }
+
+    fn process(&self) -> &Option<Child> {
+        &self.process
+    }
+
+    fn terminate_at(&self) -> &Option<DateTime<Local>> {
+        &self.terminate_at
+    }
+
+    fn set_process(&mut self, process: Option<Child>) {
+        self.process = process;
+    }
+
+    fn set_terminate_at(&mut self, terminate_at: Option<DateTime<Local>>) {
+        self.terminate_at = terminate_at;
     }
 }

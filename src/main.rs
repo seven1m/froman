@@ -3,6 +3,7 @@ extern crate yaml_rust;
 extern crate redis;
 extern crate chrono;
 extern crate nix;
+extern crate cmdline_words_parser;
 
 mod runner;
 mod workers;
@@ -83,7 +84,9 @@ fn build_workers(config: &Yaml) -> Vec<Box<Worker>> {
                         app: app.as_str().unwrap().to_string(),
                         path: path.to_string(),
                         namespace: worker_config["namespace"].as_str().unwrap().to_string(),
-                        command: worker_config["command"].as_str().unwrap().to_string()
+                        command: worker_config["command"].as_str().unwrap().to_string(),
+                        process: None,
+                        terminate_at: None
                     }))
                 },
                 "sidekiq" => {
@@ -91,7 +94,9 @@ fn build_workers(config: &Yaml) -> Vec<Box<Worker>> {
                         app: app.as_str().unwrap().to_string(),
                         path: path.to_string(),
                         namespace: worker_config["namespace"].as_str().unwrap().to_string(),
-                        command: worker_config["command"].as_str().unwrap().to_string()
+                        command: worker_config["command"].as_str().unwrap().to_string(),
+                        process: None,
+                        terminate_at: None
                     }))
                 },
                 _ => None

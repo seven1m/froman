@@ -17,57 +17,37 @@ use chrono;
 use chrono::prelude::*;
 use nix::sys::signal::{kill, Signal};
 
-struct RunningProcess {
-    process: Child,
-    terminate_at: Option<DateTime<Local>>
-}
-
-pub fn run(workers: &Vec<Box<Worker>>, config: &Config) {
+pub fn run(mut workers: &mut Vec<Box<Worker>>, config: &Config) {
     let interval = Duration::from_secs(2);
     let redis = redis::Client::open(config.redis_url.as_str()).unwrap();
     let redis_conn = redis.get_connection().expect("Redis connection failed. Is Redis running?");
-    let mut processes: HashMap<String, RunningProcess> = HashMap::new();
     let label_size = get_label_size(&workers);
     loop {
-        for (worker_index, worker) in workers.iter().enumerate() {
+        for (worker_index, worker) in workers.iter_mut().enumerate() {
             let key = worker.key();
             let color = COLORS[worker_index % COLORS.len()];
             if worker.work_to_do(&redis_conn) || worker.work_being_done(&redis_conn) {
-                if processes.contains_key(&key) {
-                    let mut running_process = processes.get_mut(&key).unwrap();
-                    running_process.terminate_at = None
+                if worker.process().is_some() {
+                    worker.set_terminate_at(None);
                 } else {
                     log(worker.app(), label_size, color, "STARTING\n");
                     let mut process = spawn(worker, &config.command_template, &config.dir);
                     pipe_output(process.stdout.take().unwrap(), worker.app(), label_size, color);
                     pipe_output(process.stderr.take().unwrap(), worker.app(), label_size, color);
-                    let running_process = RunningProcess {
-                        process: process,
-                        terminate_at: None
-                    };
-                    processes.insert(key, running_process);
+                    worker.set_process(Some(process));
                 }
-            } else if processes.contains_key(&key) {
-                let now = Local::now();
-                let mut remove = false;
-                {
-                    let mut running_process = processes.get_mut(&key).unwrap();
-                    match running_process.terminate_at {
-                        Some(terminate_at) => {
-                            if terminate_at <= now {
-                                kill(running_process.process.id() as i32, Signal::SIGTERM).unwrap();
-                                remove = true;
-                            }
+            } else {
+                if worker.process().is_some() {
+                    let now = Local::now();
+                    if worker.terminate_at().is_some() {
+                        if worker.terminate_at().unwrap() <= now {
+                            kill(worker.process_id() as i32, Signal::SIGTERM).unwrap();
+                            worker.set_process(None)
                         }
-                        None => {
-                            let terminate_at = now + chrono::Duration::seconds(30);
-                            running_process.terminate_at = Some(terminate_at);
-                        }
+                    } else {
+                        let terminate_at = now + chrono::Duration::seconds(30);
+                        worker.set_terminate_at(Some(terminate_at));
                     }
-                }
-                if remove {
-                    log(worker.app(), label_size, color, "STOPPING\n");
-                    processes.remove(&key);
                 }
             }
         }
