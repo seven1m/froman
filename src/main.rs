@@ -11,6 +11,7 @@ mod colors;
 mod config;
 use workers::*;
 use config::*;
+use runner::*;
 
 use std::io::prelude::*;
 use std::fs::File;
@@ -45,7 +46,8 @@ fn main() {
     };
 
     let mut workers = build_workers(&yaml_config);
-    runner::run(&mut workers, &config);
+    let mut runner = Runner::new(&config);
+    runner.run(&mut workers);
 }
 
 fn read_config(path: &str) -> Yaml {

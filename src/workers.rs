@@ -1,10 +1,9 @@
-use chrono;
 use chrono::prelude::*;
 
 use redis;
 use redis::Commands;
 use cmdline_words_parser::StrExt;
-use std::process::{Command, Stdio, Child};
+use std::process::Child;
 
 pub trait Worker {
     fn app(&self) -> &String;
@@ -23,10 +22,6 @@ pub trait Worker {
         let mut args: Vec<String> = command_to_parse.parse_cmdline_words().map(|a| a.to_string()).collect();
         let program = args.remove(0).to_string();
         (program, args)
-    }
-
-    fn key(&self) -> String {
-        format!("{}: {}", self.app(), self.kind())
     }
 
     fn absolute_path(&self, config_dir: &str) -> String {
