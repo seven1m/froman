@@ -54,6 +54,7 @@ impl<'a> Runner<'a> {
                 let now = Local::now();
                 if worker.terminate_at().is_some() {
                     if worker.terminate_at().unwrap() <= now {
+                        log(worker.app(), label_size, color, "STOPPING\n");
                         kill(worker.process_id() as i32, Signal::SIGTERM).unwrap();
                         worker.set_process(None)
                     }
