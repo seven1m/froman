@@ -103,7 +103,7 @@ impl<'a> Runner<'a> {
                 match out.read(&mut buf) {
                     Ok(count) => {
                         if count > 0 {
-                            log(&label, label_size, &color, &String::from_utf8_lossy(&buf));
+                            log(&label, label_size, &color, &String::from_utf8_lossy(&buf).replace("\u{0}", ""));
                         } else {
                             break;
                         }
@@ -120,7 +120,9 @@ fn left_pad(str: &str, length: usize) -> String {
 }
 
 fn log(label: &str, label_size: usize, color: &str, message: &str) {
-    print!("{}: ", colorize(&left_pad(&label, label_size), color));
-    print!("{}", message);
-    io::stdout().flush().ok().expect("Could not flush stdout");
+    if message.trim().is_empty() { return }
+    for line in message.trim().split("\n") {
+        println!("{}: {}", colorize(&left_pad(&label, label_size), color), line);
+        io::stdout().flush().ok().expect("Could not flush stdout");
+    }
 }
