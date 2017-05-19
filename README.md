@@ -19,6 +19,17 @@ This might be super useful if you are using Vagrant or VM for development and wa
 * Sends TERM signal to child processes so they shut down properly
 * Saves memory
 
+## Installation
+
+If you're on Mac, you can download the binary [here](https://github.com/seven1m/froman/releases).
+
+For other platforms, you'll need to build with Rust:
+
+```
+curl https://sh.rustup.rs -sSf | sh
+cargo build --release
+```
+
 ## Configure and Run
 
 Froman is configured with a `froman.yml` file like this:
@@ -43,9 +54,6 @@ apps:
 
 `namespace` is the Redis namespace to monitor for jobs.
 
-Install Froman:
-
-TBD
 
 Run Froman:
 
