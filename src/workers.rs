@@ -67,7 +67,7 @@ impl Worker for Sidekiq {
     }
 
     fn work_to_do(&self, redis_conn: &redis::Connection) -> bool {
-        let queues: Vec<String> = redis_conn.keys(format!("{}:queue:*", self.namespace)).unwrap();
+        let queues: Vec<String> = redis_conn.keys(format!("{}:queue:*", self.namespace)).expect("Could not read from redis");
         let counts: Vec<i32> = queues.iter().map(|q| {
             redis_conn.llen(q).unwrap()
         }).collect();
@@ -75,7 +75,7 @@ impl Worker for Sidekiq {
     }
 
     fn work_being_done(&self, redis_conn: &redis::Connection) -> bool {
-        let processes: Vec<String> = redis_conn.smembers(format!("{}:processes", self.namespace)).unwrap();
+        let processes: Vec<String> = redis_conn.smembers(format!("{}:processes", self.namespace)).expect("Could not read from redis");
         let counts: Vec<i32> = processes.iter().map(|p| {
             redis_conn.hget(format!("{}:{}", self.namespace, p), "busy").unwrap_or(0)
         }).collect();
@@ -126,7 +126,7 @@ impl Worker for Resque {
     }
 
     fn work_to_do(&self, redis_conn: &redis::Connection) -> bool {
-        let queues: Vec<String> = redis_conn.smembers(format!("{}:queues", self.namespace)).unwrap();
+        let queues: Vec<String> = redis_conn.smembers(format!("{}:queues", self.namespace)).expect("Could not read from redis");
         let counts: Vec<i32> = queues.iter().map(|q| {
             redis_conn.llen(format!("{}:queue:{}", self.namespace, q)).unwrap()
         }).collect();
