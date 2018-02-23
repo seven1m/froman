@@ -1,6 +1,7 @@
 use workers::*;
 use colors::*;
 use config::*;
+use errors::*;
 use std::thread::sleep;
 use std::time::Duration;
 use std::process::{Command, Stdio, Child};
@@ -24,22 +25,23 @@ impl<'a> Runner<'a> {
         Runner { config }
     }
 
-    pub fn run(&mut self, mut workers: &mut Vec<Box<Worker>>) {
+    pub fn run(&mut self, mut workers: &mut Vec<Box<Worker>>) -> Result<(), FromanError> {
         let interval = Duration::from_secs(2);
         let redis = redis::Client::open(self.config.redis_url.as_str()).unwrap();
-        let redis_conn = redis.get_connection().expect("Redis connection failed. Is Redis running?");
+        let redis_conn = redis.get_connection()?;
         let label_size = self.get_label_size(&workers);
+        println!("Froman monitoring queues...");
         loop {
             for (worker_index, mut worker) in workers.iter_mut().enumerate() {
                 let color = COLORS[worker_index % COLORS.len()];
-                self.work(&mut worker, &redis_conn, color, label_size);
+                self.work(&mut worker, &redis_conn, color, label_size)?;
             }
             sleep(interval);
         }
     }
 
-    fn work(&self, worker: &mut Box<Worker>, redis_conn: &redis::Connection, color: &str, label_size: usize) {
-        if worker.work_to_do(&redis_conn) || worker.work_being_done(&redis_conn) {
+    fn work(&self, worker: &mut Box<Worker>, redis_conn: &redis::Connection, color: &str, label_size: usize) -> Result<(), FromanError> {
+        if worker.work_to_do(&redis_conn)? || worker.work_being_done(&redis_conn)? {
             if worker.process().is_some() {
                 worker.set_terminate_at(None);
             } else {
@@ -63,7 +65,8 @@ impl<'a> Runner<'a> {
                     worker.set_terminate_at(Some(terminate_at));
                 }
             }
-            }
+        }
+        Ok(())
     }
 
     fn get_label_size(&self, workers: &Vec<Box<Worker>>) -> usize {
