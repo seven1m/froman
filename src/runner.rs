@@ -25,7 +25,7 @@ impl<'a> Runner<'a> {
         Runner { config }
     }
 
-    pub fn run(&mut self, mut workers: &mut Vec<Box<Worker>>) -> Result<(), FromanError> {
+    pub fn run(&mut self, workers: &mut Vec<Box<Worker>>) -> Result<(), FromanError> {
         let interval = Duration::from_secs(2);
         let redis = redis::Client::open(self.config.redis_url.as_str()).unwrap();
         let redis_conn = redis.get_connection()?;
