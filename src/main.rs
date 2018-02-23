@@ -9,14 +9,18 @@ mod runner;
 mod workers;
 mod colors;
 mod config;
+mod errors;
 use workers::*;
 use config::*;
 use runner::*;
+use errors::*;
 
 use std::io::prelude::*;
 use std::fs::File;
 use std::path::Path;
 use std::process::exit;
+use std::thread;
+use std::time;
 use clap::App;
 use yaml_rust::{YamlLoader, Yaml};
 
@@ -47,7 +51,15 @@ fn main() {
 
     let mut workers = build_workers(&yaml_config);
     let mut runner = Runner::new(&config);
-    runner.run(&mut workers);
+    loop {
+        match runner.run(&mut workers) {
+            Ok(()) => break,
+            Err(FromanError::RedisError(e)) => {
+                println!("Error connecting to Redis: {}; Will retry in 10 seconds...", e);
+            }
+        }
+        thread::sleep(time::Duration::from_secs(10));
+    }
 }
 
 fn read_config(path: &str) -> Yaml {

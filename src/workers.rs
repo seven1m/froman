@@ -4,14 +4,15 @@ use redis;
 use redis::Commands;
 use cmdline_words_parser::StrExt;
 use std::process::Child;
+use errors::*;
 
 pub trait Worker {
     fn app(&self) -> &String;
     fn path(&self) -> &String;
     fn command(&self) -> &String;
     fn kind(&self) -> &str;
-    fn work_to_do(&self, &redis::Connection) -> bool;
-    fn work_being_done(&self, &redis::Connection) -> bool;
+    fn work_to_do(&self, &redis::Connection) -> FromanResult<bool>;
+    fn work_being_done(&self, &redis::Connection) -> FromanResult<bool>;
     fn process(&self) -> &Option<Child>;
     fn terminate_at(&self) -> &Option<DateTime<Local>>;
     fn set_process(&mut self, Option<Child>);
@@ -66,20 +67,20 @@ impl Worker for Sidekiq {
         "sidekiq"
     }
 
-    fn work_to_do(&self, redis_conn: &redis::Connection) -> bool {
-        let queues: Vec<String> = redis_conn.keys(format!("{}:queue:*", self.namespace)).expect("Could not read from redis");
+    fn work_to_do(&self, redis_conn: &redis::Connection) -> FromanResult<bool> {
+        let queues: Vec<String> = redis_conn.keys(format!("{}:queue:*", self.namespace))?;
         let counts: Vec<i32> = queues.iter().map(|q| {
-            redis_conn.llen(q).unwrap()
+            redis_conn.llen(q).unwrap_or(0)
         }).collect();
-        counts.iter().fold(0i32, |a, &b| a + b) > 0
+        Ok(counts.iter().sum::<i32>() > 0)
     }
 
-    fn work_being_done(&self, redis_conn: &redis::Connection) -> bool {
-        let processes: Vec<String> = redis_conn.smembers(format!("{}:processes", self.namespace)).expect("Could not read from redis");
+    fn work_being_done(&self, redis_conn: &redis::Connection) -> FromanResult<bool> {
+        let processes: Vec<String> = redis_conn.smembers(format!("{}:processes", self.namespace))?;
         let counts: Vec<i32> = processes.iter().map(|p| {
             redis_conn.hget(format!("{}:{}", self.namespace, p), "busy").unwrap_or(0)
         }).collect();
-        counts.iter().fold(0i32, |a, &b| a + b) > 0
+        Ok(counts.iter().sum::<i32>() > 0)
     }
 
     fn process(&self) -> &Option<Child> {
@@ -125,16 +126,16 @@ impl Worker for Resque {
         "resque"
     }
 
-    fn work_to_do(&self, redis_conn: &redis::Connection) -> bool {
-        let queues: Vec<String> = redis_conn.smembers(format!("{}:queues", self.namespace)).expect("Could not read from redis");
+    fn work_to_do(&self, redis_conn: &redis::Connection) -> FromanResult<bool> {
+        let queues: Vec<String> = redis_conn.smembers(format!("{}:queues", self.namespace))?;
         let counts: Vec<i32> = queues.iter().map(|q| {
-            redis_conn.llen(format!("{}:queue:{}", self.namespace, q)).unwrap()
+            redis_conn.llen(format!("{}:queue:{}", self.namespace, q)).unwrap_or(0)
         }).collect();
-        counts.iter().fold(0i32, |a, &b| a + b) > 0
+        Ok(counts.iter().sum::<i32>() > 0)
     }
 
-    fn work_being_done(&self, _redis_conn: &redis::Connection) -> bool {
-        false // no way to know if work is being done in Resque
+    fn work_being_done(&self, _redis_conn: &redis::Connection) -> FromanResult<bool> {
+        Ok(false) // no way to know if work is being done in Resque
     }
 
     fn process(&self) -> &Option<Child> {
