@@ -9,3 +9,5 @@ impl From<redis::RedisError> for FromanError {
         FromanError::RedisError(error)
     }
 }
+
+pub type FromanResult<T> = Result<T, FromanError>;

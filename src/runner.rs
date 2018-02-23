@@ -25,7 +25,7 @@ impl<'a> Runner<'a> {
         Runner { config }
     }
 
-    pub fn run(&mut self, workers: &mut Vec<Box<Worker>>) -> Result<(), FromanError> {
+    pub fn run(&mut self, workers: &mut Vec<Box<Worker>>) -> FromanResult<()> {
         let interval = Duration::from_secs(2);
         let redis = redis::Client::open(self.config.redis_url.as_str()).unwrap();
         let redis_conn = redis.get_connection()?;
@@ -40,7 +40,7 @@ impl<'a> Runner<'a> {
         }
     }
 
-    fn work(&self, worker: &mut Box<Worker>, redis_conn: &redis::Connection, color: &str, label_size: usize) -> Result<(), FromanError> {
+    fn work(&self, worker: &mut Box<Worker>, redis_conn: &redis::Connection, color: &str, label_size: usize) -> FromanResult<()> {
         if worker.work_to_do(&redis_conn)? || worker.work_being_done(&redis_conn)? {
             if worker.process().is_some() {
                 worker.set_terminate_at(None);
