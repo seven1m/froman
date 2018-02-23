@@ -72,7 +72,7 @@ impl Worker for Sidekiq {
         let counts: Vec<i32> = queues.iter().map(|q| {
             redis_conn.llen(q).unwrap_or(0)
         }).collect();
-        Ok(counts.iter().fold(0i32, |a, &b| a + b) > 0)
+        Ok(counts.iter().sum::<i32>() > 0)
     }
 
     fn work_being_done(&self, redis_conn: &redis::Connection) -> Result<bool, FromanError> {
@@ -80,7 +80,7 @@ impl Worker for Sidekiq {
         let counts: Vec<i32> = processes.iter().map(|p| {
             redis_conn.hget(format!("{}:{}", self.namespace, p), "busy").unwrap_or(0)
         }).collect();
-        Ok(counts.iter().fold(0i32, |a, &b| a + b) > 0)
+        Ok(counts.iter().sum::<i32>() > 0)
     }
 
     fn process(&self) -> &Option<Child> {
@@ -131,7 +131,7 @@ impl Worker for Resque {
         let counts: Vec<i32> = queues.iter().map(|q| {
             redis_conn.llen(format!("{}:queue:{}", self.namespace, q)).unwrap_or(0)
         }).collect();
-        Ok(counts.iter().fold(0i32, |a, &b| a + b) > 0)
+        Ok(counts.iter().sum::<i32>() > 0)
     }
 
     fn work_being_done(&self, _redis_conn: &redis::Connection) -> Result<bool, FromanError> {
