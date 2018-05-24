@@ -17,6 +17,7 @@ pub trait Worker {
     fn terminate_at(&self) -> &Option<DateTime<Local>>;
     fn set_process(&mut self, Option<Child>);
     fn set_terminate_at(&mut self, Option<DateTime<Local>>);
+    fn namespace(&self) -> String;
 
     fn command_binary_and_args(&self, command_template: &str) -> (String, Vec<String>) {
         let mut command_to_parse = command_template.replace("%s", self.command());
@@ -37,6 +38,15 @@ pub trait Worker {
         match *self.process() {
             Some(ref process) => process.id(),
             _ => 0u32
+        }
+    }
+
+    fn namespaced(&self, key: &str) -> String {
+        let namespace = self.namespace();
+        if namespace.is_empty() {
+          key.to_string()
+        } else {
+          format!("{}:{}", namespace, key)
         }
     }
 }
@@ -68,7 +78,8 @@ impl Worker for Sidekiq {
     }
 
     fn work_to_do(&self, redis_conn: &redis::Connection) -> FromanResult<bool> {
-        let queues: Vec<String> = redis_conn.keys(format!("{}:queue:*", self.namespace))?;
+        let queue_key = self.namespaced("queue:*");
+        let queues: Vec<String> = redis_conn.keys(queue_key)?;
         let counts: Vec<i32> = queues.iter().map(|q| {
             redis_conn.llen(q).unwrap_or(0)
         }).collect();
@@ -76,9 +87,11 @@ impl Worker for Sidekiq {
     }
 
     fn work_being_done(&self, redis_conn: &redis::Connection) -> FromanResult<bool> {
-        let processes: Vec<String> = redis_conn.smembers(format!("{}:processes", self.namespace))?;
+        let processes_key = self.namespaced("processes");
+        let processes: Vec<String> = redis_conn.smembers(processes_key)?;
         let counts: Vec<i32> = processes.iter().map(|p| {
-            redis_conn.hget(format!("{}:{}", self.namespace, p), "busy").unwrap_or(0)
+            let key = self.namespaced(p);
+            redis_conn.hget(key, "busy").unwrap_or(0)
         }).collect();
         Ok(counts.iter().sum::<i32>() > 0)
     }
@@ -97,6 +110,10 @@ impl Worker for Sidekiq {
 
     fn set_terminate_at(&mut self, terminate_at: Option<DateTime<Local>>) {
         self.terminate_at = terminate_at;
+    }
+
+    fn namespace(&self) -> String {
+        self.namespace.to_owned()
     }
 }
 
@@ -127,9 +144,11 @@ impl Worker for Resque {
     }
 
     fn work_to_do(&self, redis_conn: &redis::Connection) -> FromanResult<bool> {
-        let queues: Vec<String> = redis_conn.smembers(format!("{}:queues", self.namespace))?;
+        let queues_key = self.namespaced("queues");
+        let queues: Vec<String> = redis_conn.smembers(queues_key)?;
         let counts: Vec<i32> = queues.iter().map(|q| {
-            redis_conn.llen(format!("{}:queue:{}", self.namespace, q)).unwrap_or(0)
+            let queue_key = self.namespaced(&format!("queue:{}", q));
+            redis_conn.llen(queue_key).unwrap_or(0)
         }).collect();
         Ok(counts.iter().sum::<i32>() > 0)
     }
@@ -152,5 +171,9 @@ impl Worker for Resque {
 
     fn set_terminate_at(&mut self, terminate_at: Option<DateTime<Local>>) {
         self.terminate_at = terminate_at;
+    }
+
+    fn namespace(&self) -> String {
+        self.namespace.to_owned()
     }
 }

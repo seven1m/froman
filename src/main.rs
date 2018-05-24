@@ -97,7 +97,7 @@ fn build_workers(config: &Yaml) -> Vec<Box<Worker>> {
                     Some(Box::new(Resque {
                         app: app.as_str().unwrap().to_string(),
                         path: path.to_string(),
-                        namespace: worker_config["namespace"].as_str().unwrap().to_string(),
+                        namespace: worker_config["namespace"].as_str().unwrap_or("").to_string(),
                         command: worker_config["command"].as_str().unwrap().to_string(),
                         process: None,
                         terminate_at: None
@@ -107,7 +107,7 @@ fn build_workers(config: &Yaml) -> Vec<Box<Worker>> {
                     Some(Box::new(Sidekiq {
                         app: app.as_str().unwrap().to_string(),
                         path: path.to_string(),
-                        namespace: worker_config["namespace"].as_str().unwrap().to_string(),
+                        namespace: worker_config["namespace"].as_str().unwrap_or("").to_string(),
                         command: worker_config["command"].as_str().unwrap().to_string(),
                         process: None,
                         terminate_at: None
