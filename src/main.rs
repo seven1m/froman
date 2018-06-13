@@ -34,13 +34,17 @@ fn main() {
         .about("process manager for your dev environment")
         .args_from_usage("-c, --config=[FILE] 'Use a custom config file (default: ./froman.yml)'")
         .args_from_usage("-r, --redis=[URL] 'Specify Redis URL (default: redis://127.0.0.1/)'")
+        .args_from_usage("-d, --debug 'Enable debugging output'")
         .get_matches();
 
     let config_path = matches.value_of("config").unwrap_or(DEFAULT_CONFIG);
     let redis_url = matches.value_of("redis").unwrap_or(DEFAULT_REDIS_URL);
+    let debug_mode = matches.is_present("debug");
     let yaml_config = read_config(&config_path);
     let command_template = yaml_config["command_template"].as_str().expect("config 'command_template' key not found!");
-    let mut config_dir = Path::new(&config_path).parent().unwrap().to_str().unwrap();
+    let mut config_dir = Path::new(&config_path)
+      .parent().expect("could not get parent directory of config path")
+      .to_str().expect("could not get parent directory of config path as string");
     if config_dir.is_empty() { config_dir = "." }
 
     let config = Config {
@@ -49,7 +53,7 @@ fn main() {
         redis_url: redis_url.to_string()
     };
 
-    let mut workers = build_workers(&yaml_config);
+    let mut workers = build_workers(&yaml_config, debug_mode);
     let mut runner = Runner::new(&config);
     loop {
         match runner.run(&mut workers) {
@@ -81,34 +85,35 @@ fn read_config(path: &str) -> Yaml {
     }
 }
 
-fn build_workers(config: &Yaml) -> Vec<Box<Worker>> {
+fn build_workers(config: &Yaml, debug: bool) -> Vec<Box<Worker>> {
     let apps = config["apps"].as_hash().expect("config 'apps' key not found!");
     let mut path = "";
     apps.iter().flat_map(|(app, app_config)| -> Vec<Box<Worker>> {
-        app_config.as_hash().unwrap().iter().filter_map(|(worker_type, worker_config)| -> Option<Box<Worker>> {
-            let worker_type = worker_type.as_str().unwrap();
+        app_config.as_hash().expect("config is not a hash!").iter().filter_map(|(worker_type, worker_config)| -> Option<Box<Worker>> {
+            if debug { println!("{:?}: {:?}", worker_type, worker_config); }
+            let worker_type = worker_type.as_str().expect("could not get worker type as string");
             match worker_type {
                 "path" => {
                     // special key that points to the app path
-                    path = worker_config.as_str().unwrap();
+                    path = worker_config.as_str().expect("could not get app path as string");
                     None
                 },
                 "resque" => {
                     Some(Box::new(Resque {
-                        app: app.as_str().unwrap().to_string(),
+                        app: app.as_str().expect("could not get app name as string").to_string(),
                         path: path.to_string(),
                         namespace: worker_config["namespace"].as_str().unwrap_or("").to_string(),
-                        command: worker_config["command"].as_str().unwrap().to_string(),
+                        command: worker_config["command"].as_str().expect("could not get start command as string").to_string(),
                         process: None,
                         terminate_at: None
                     }))
                 },
                 "sidekiq" => {
                     Some(Box::new(Sidekiq {
-                        app: app.as_str().unwrap().to_string(),
+                        app: app.as_str().expect("could not get app name as string").to_string(),
                         path: path.to_string(),
                         namespace: worker_config["namespace"].as_str().unwrap_or("").to_string(),
-                        command: worker_config["command"].as_str().unwrap().to_string(),
+                        command: worker_config["command"].as_str().expect("could not get start command as string").to_string(),
                         process: None,
                         terminate_at: None
                     }))
