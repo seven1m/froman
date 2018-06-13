@@ -1,3 +1,8 @@
+# 1.2.1 - Jun 13, 2018
+
+* Add debug mode switch
+* Show better error message if panicking 
+
 # 1.2.0 - May 24, 2018
 
 * Monitor queues without a namespace too
