@@ -1,3 +1,7 @@
+# 1.3.0 - Aug 6, 2018
+
+* Add timeout config option for specifying how long to wait before stopping worker
+
 # 1.2.1 - Jun 13, 2018
 
 * Add debug mode switch
