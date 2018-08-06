@@ -27,19 +27,30 @@ use yaml_rust::{YamlLoader, Yaml};
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 const DEFAULT_CONFIG: &'static str = "froman.yml";
 const DEFAULT_REDIS_URL: &'static str = "redis://127.0.0.1/";
+const DEFAULT_TIMEOUT: u16 = 30;
 
 fn main() {
     let matches = App::new("froman")
-        .version(VERSION)
-        .about("process manager for your dev environment")
-        .args_from_usage("-c, --config=[FILE] 'Use a custom config file (default: ./froman.yml)'")
-        .args_from_usage("-r, --redis=[URL] 'Specify Redis URL (default: redis://127.0.0.1/)'")
-        .args_from_usage("-d, --debug 'Enable debugging output'")
-        .get_matches();
+    .version(VERSION)
+    .about("process manager for your dev environment")
+    .args_from_usage("-c, --config=[FILE] 'Specifies a custom config file (default: ./froman.yml)'")
+    .args_from_usage("-r, --redis=[URL] 'Specifies the Redis URL (default: redis://127.0.0.1/)'")
+    .args_from_usage("-d, --debug 'Enables debugging output'")
+    .args_from_usage(
+      "-t, --timeout=[SECONDS] 'Specifies the number of seconds to wait before stopping a worker (default: 30)'",
+      )
+    .get_matches();
 
     let config_path = matches.value_of("config").unwrap_or(DEFAULT_CONFIG);
     let redis_url = matches.value_of("redis").unwrap_or(DEFAULT_REDIS_URL);
     let debug_mode = matches.is_present("debug");
+    let timeout = matches
+        .value_of("timeout")
+        .map(|t| {
+            t.parse::<u16>()
+                .expect("expected a positive integer for timeout")
+        })
+        .unwrap_or(DEFAULT_TIMEOUT);
     let yaml_config = read_config(&config_path);
     let command_template = yaml_config["command_template"].as_str().expect("config 'command_template' key not found!");
     let mut config_dir = Path::new(&config_path)
@@ -50,7 +61,8 @@ fn main() {
     let config = Config {
         dir: config_dir.to_string(),
         command_template: command_template.to_string(),
-        redis_url: redis_url.to_string()
+        redis_url: redis_url.to_string(),
+        timeout: timeout,
     };
 
     let mut workers = build_workers(&yaml_config, debug_mode);

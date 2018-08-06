@@ -61,7 +61,7 @@ impl<'a> Runner<'a> {
                         worker.set_process(None)
                     }
                 } else {
-                    let terminate_at = now + chrono::Duration::seconds(30);
+                    let terminate_at = now + chrono::Duration::seconds(self.config.timeout as i64);
                     worker.set_terminate_at(Some(terminate_at));
                 }
             }
