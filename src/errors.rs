@@ -1,7 +1,7 @@
 use redis;
 
 pub enum FromanError {
-    RedisError(redis::RedisError)
+    RedisError(redis::RedisError),
 }
 
 impl From<redis::RedisError> for FromanError {

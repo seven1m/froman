@@ -4,7 +4,7 @@ use config::*;
 use errors::*;
 use std::thread::sleep;
 use std::time::Duration;
-use std::process::{Command, Stdio, Child};
+use std::process::{Child, Command, Stdio};
 use std::io::Read;
 use std::path::Path;
 use std::thread;
@@ -17,7 +17,7 @@ use chrono::prelude::*;
 use nix::sys::signal::{kill, Signal};
 
 pub struct Runner<'a> {
-    config: &'a Config
+    config: &'a Config,
 }
 
 impl<'a> Runner<'a> {
@@ -40,15 +40,31 @@ impl<'a> Runner<'a> {
         }
     }
 
-    fn work(&self, worker: &mut Box<Worker>, redis_conn: &redis::Connection, color: &str, label_size: usize) -> FromanResult<()> {
+    fn work(
+        &self,
+        worker: &mut Box<Worker>,
+        redis_conn: &redis::Connection,
+        color: &str,
+        label_size: usize,
+    ) -> FromanResult<()> {
         if worker.work_to_do(&redis_conn)? || worker.work_being_done(&redis_conn)? {
             if worker.process().is_some() {
                 worker.set_terminate_at(None);
             } else {
                 log(worker.app(), label_size, color, "STARTING\n");
                 let mut process = self.spawn(worker);
-                self.pipe_output(process.stdout.take().unwrap(), worker.app(), label_size, color);
-                self.pipe_output(process.stderr.take().unwrap(), worker.app(), label_size, color);
+                self.pipe_output(
+                    process.stdout.take().unwrap(),
+                    worker.app(),
+                    label_size,
+                    color,
+                );
+                self.pipe_output(
+                    process.stderr.take().unwrap(),
+                    worker.app(),
+                    label_size,
+                    color,
+                );
                 worker.set_process(Some(process));
             }
         } else {
@@ -97,22 +113,31 @@ impl<'a> Runner<'a> {
             .expect("failure")
     }
 
-    fn pipe_output<T: 'static + Read + Send>(&self, mut out: T, label: &str, label_size: usize, color: &str) {
+    fn pipe_output<T: 'static + Read + Send>(
+        &self,
+        mut out: T,
+        label: &str,
+        label_size: usize,
+        color: &str,
+    ) {
         let label = label.to_owned();
         let color = color.to_owned();
-        thread::spawn(move || {
-            loop {
-                let mut buf = [0; 10000];
-                match out.read(&mut buf) {
-                    Ok(count) => {
-                        if count > 0 {
-                            log(&label, label_size, &color, &String::from_utf8_lossy(&buf).replace("\u{0}", ""));
-                        } else {
-                            break;
-                        }
+        thread::spawn(move || loop {
+            let mut buf = [0; 10000];
+            match out.read(&mut buf) {
+                Ok(count) => {
+                    if count > 0 {
+                        log(
+                            &label,
+                            label_size,
+                            &color,
+                            &String::from_utf8_lossy(&buf).replace("\u{0}", ""),
+                        );
+                    } else {
+                        break;
                     }
-                    Err(_) => break
                 }
+                Err(_) => break,
             }
         });
     }
@@ -123,9 +148,15 @@ fn left_pad(str: &str, length: usize) -> String {
 }
 
 fn log(label: &str, label_size: usize, color: &str, message: &str) {
-    if message.trim().is_empty() { return }
+    if message.trim().is_empty() {
+        return;
+    }
     for line in message.trim().split("\n") {
-        println!("{}: {}", colorize(&left_pad(&label, label_size), color), line);
+        println!(
+            "{}: {}",
+            colorize(&left_pad(&label, label_size), color),
+            line
+        );
         io::stdout().flush().ok().expect("Could not flush stdout");
     }
 }

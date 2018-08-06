@@ -21,7 +21,10 @@ pub trait Worker {
 
     fn command_binary_and_args(&self, command_template: &str) -> (String, Vec<String>) {
         let mut command_to_parse = command_template.replace("%s", self.command());
-        let mut args: Vec<String> = command_to_parse.parse_cmdline_words().map(|a| a.to_string()).collect();
+        let mut args: Vec<String> = command_to_parse
+            .parse_cmdline_words()
+            .map(|a| a.to_string())
+            .collect();
         let program = args.remove(0).to_string();
         (program, args)
     }
@@ -37,16 +40,16 @@ pub trait Worker {
     fn process_id(&self) -> u32 {
         match *self.process() {
             Some(ref process) => process.id(),
-            _ => 0u32
+            _ => 0u32,
         }
     }
 
     fn namespaced(&self, key: &str) -> String {
         let namespace = self.namespace();
         if namespace.is_empty() {
-          key.to_string()
+            key.to_string()
         } else {
-          format!("{}:{}", namespace, key)
+            format!("{}:{}", namespace, key)
         }
     }
 }
@@ -57,7 +60,7 @@ pub struct Sidekiq {
     pub namespace: String,
     pub command: String,
     pub process: Option<Child>,
-    pub terminate_at: Option<DateTime<Local>>
+    pub terminate_at: Option<DateTime<Local>>,
 }
 
 impl Worker for Sidekiq {
@@ -80,19 +83,23 @@ impl Worker for Sidekiq {
     fn work_to_do(&self, redis_conn: &redis::Connection) -> FromanResult<bool> {
         let queue_key = self.namespaced("queue:*");
         let queues: Vec<String> = redis_conn.keys(queue_key)?;
-        let counts: Vec<i32> = queues.iter().map(|q| {
-            redis_conn.llen(q).unwrap_or(0)
-        }).collect();
+        let counts: Vec<i32> = queues
+            .iter()
+            .map(|q| redis_conn.llen(q).unwrap_or(0))
+            .collect();
         Ok(counts.iter().sum::<i32>() > 0)
     }
 
     fn work_being_done(&self, redis_conn: &redis::Connection) -> FromanResult<bool> {
         let processes_key = self.namespaced("processes");
         let processes: Vec<String> = redis_conn.smembers(processes_key)?;
-        let counts: Vec<i32> = processes.iter().map(|p| {
-            let key = self.namespaced(p);
-            redis_conn.hget(key, "busy").unwrap_or(0)
-        }).collect();
+        let counts: Vec<i32> = processes
+            .iter()
+            .map(|p| {
+                let key = self.namespaced(p);
+                redis_conn.hget(key, "busy").unwrap_or(0)
+            })
+            .collect();
         Ok(counts.iter().sum::<i32>() > 0)
     }
 
@@ -123,7 +130,7 @@ pub struct Resque {
     pub namespace: String,
     pub command: String,
     pub process: Option<Child>,
-    pub terminate_at: Option<DateTime<Local>>
+    pub terminate_at: Option<DateTime<Local>>,
 }
 
 impl Worker for Resque {
@@ -146,10 +153,13 @@ impl Worker for Resque {
     fn work_to_do(&self, redis_conn: &redis::Connection) -> FromanResult<bool> {
         let queues_key = self.namespaced("queues");
         let queues: Vec<String> = redis_conn.smembers(queues_key)?;
-        let counts: Vec<i32> = queues.iter().map(|q| {
-            let queue_key = self.namespaced(&format!("queue:{}", q));
-            redis_conn.llen(queue_key).unwrap_or(0)
-        }).collect();
+        let counts: Vec<i32> = queues
+            .iter()
+            .map(|q| {
+                let queue_key = self.namespaced(&format!("queue:{}", q));
+                redis_conn.llen(queue_key).unwrap_or(0)
+            })
+            .collect();
         Ok(counts.iter().sum::<i32>() > 0)
     }
 
