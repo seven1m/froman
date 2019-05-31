@@ -87,7 +87,9 @@ impl Worker for Sidekiq {
             .iter()
             .map(|q| redis_conn.llen(q).unwrap_or(0))
             .collect();
-        Ok(counts.iter().sum::<i32>() > 0)
+        let schedule_queue_key = self.namespaced("schedule");
+        let schedule_count = redis_conn.zcount(schedule_queue_key, "0", "+inf").unwrap_or(0);
+        Ok(counts.iter().sum::<i32>() > 0 || schedule_count > 0)
     }
 
     fn work_being_done(&self, redis_conn: &redis::Connection) -> FromanResult<bool> {
