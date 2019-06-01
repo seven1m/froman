@@ -1,3 +1,7 @@
+# 1.4.0 - May 31, 2019
+
+* Check for scheduled jobs in sidekiq too
+
 # 1.3.0 - Aug 6, 2018
 
 * Add timeout config option for specifying how long to wait before stopping worker
