@@ -1,22 +1,22 @@
 use chrono::prelude::*;
 
+use cmdline_words_parser::StrExt;
+use errors::*;
 use redis;
 use redis::Commands;
-use cmdline_words_parser::StrExt;
 use std::process::Child;
-use errors::*;
 
 pub trait Worker {
     fn app(&self) -> &String;
     fn path(&self) -> &String;
     fn command(&self) -> &String;
     fn kind(&self) -> &str;
-    fn work_to_do(&self, &redis::Connection) -> FromanResult<bool>;
-    fn work_being_done(&self, &redis::Connection) -> FromanResult<bool>;
+    fn work_to_do(&self, _: &redis::Connection) -> FromanResult<bool>;
+    fn work_being_done(&self, _: &redis::Connection) -> FromanResult<bool>;
     fn process(&self) -> &Option<Child>;
     fn terminate_at(&self) -> &Option<DateTime<Local>>;
-    fn set_process(&mut self, Option<Child>);
-    fn set_terminate_at(&mut self, Option<DateTime<Local>>);
+    fn set_process(&mut self, _: Option<Child>);
+    fn set_terminate_at(&mut self, _: Option<DateTime<Local>>);
     fn namespace(&self) -> String;
 
     fn command_binary_and_args(&self, command_template: &str) -> (String, Vec<String>) {
@@ -88,7 +88,9 @@ impl Worker for Sidekiq {
             .map(|q| redis_conn.llen(q).unwrap_or(0))
             .collect();
         let schedule_queue_key = self.namespaced("schedule");
-        let schedule_count = redis_conn.zcount(schedule_queue_key, "0", "+inf").unwrap_or(0);
+        let schedule_count = redis_conn
+            .zcount(schedule_queue_key, "0", "+inf")
+            .unwrap_or(0);
         Ok(counts.iter().sum::<i32>() > 0 || schedule_count > 0)
     }
 

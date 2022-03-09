@@ -5,23 +5,23 @@ extern crate nix;
 extern crate redis;
 extern crate yaml_rust;
 
-mod runner;
-mod workers;
 mod colors;
 mod config;
 mod errors;
-use workers::*;
+mod runner;
+mod workers;
 use config::*;
-use runner::*;
 use errors::*;
+use runner::*;
+use workers::*;
 
-use std::io::prelude::*;
+use clap::App;
 use std::fs::File;
+use std::io::prelude::*;
 use std::path::Path;
 use std::process::exit;
 use std::thread;
 use std::time;
-use clap::App;
 use yaml_rust::{Yaml, YamlLoader};
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -106,18 +106,18 @@ fn read_config(path: &str) -> Yaml {
     }
 }
 
-fn build_workers(config: &Yaml, debug: bool) -> Vec<Box<Worker>> {
+fn build_workers(config: &Yaml, debug: bool) -> Vec<Box<dyn Worker>> {
     let apps = config["apps"]
         .as_hash()
         .expect("config 'apps' key not found!");
     let mut path = "";
     apps.iter()
-        .flat_map(|(app, app_config)| -> Vec<Box<Worker>> {
+        .flat_map(|(app, app_config)| -> Vec<Box<dyn Worker>> {
             app_config
                 .as_hash()
                 .expect("config is not a hash!")
                 .iter()
-                .filter_map(|(worker_type, worker_config)| -> Option<Box<Worker>> {
+                .filter_map(|(worker_type, worker_config)| -> Option<Box<dyn Worker>> {
                     if debug {
                         println!("{:?}: {:?}", worker_type, worker_config);
                     }
@@ -133,7 +133,8 @@ fn build_workers(config: &Yaml, debug: bool) -> Vec<Box<Worker>> {
                             None
                         }
                         "resque" => Some(Box::new(Resque {
-                            app: app.as_str()
+                            app: app
+                                .as_str()
                                 .expect("could not get app name as string")
                                 .to_string(),
                             path: path.to_string(),
@@ -149,7 +150,8 @@ fn build_workers(config: &Yaml, debug: bool) -> Vec<Box<Worker>> {
                             terminate_at: None,
                         })),
                         "sidekiq" => Some(Box::new(Sidekiq {
-                            app: app.as_str()
+                            app: app
+                                .as_str()
                                 .expect("could not get app name as string")
                                 .to_string(),
                             path: path.to_string(),

@@ -1,20 +1,20 @@
-use workers::*;
+use chrono;
+use chrono::prelude::*;
 use colors::*;
 use config::*;
 use errors::*;
-use std::thread::sleep;
-use std::time::Duration;
-use std::process::{Child, Command, Stdio};
+use nix::sys::signal::{kill, Signal};
+use redis;
+use std::io;
+use std::io::prelude::*;
 use std::io::Read;
 use std::path::Path;
-use std::thread;
 use std::process;
-use std::io::prelude::*;
-use std::io;
-use redis;
-use chrono;
-use chrono::prelude::*;
-use nix::sys::signal::{kill, Signal};
+use std::process::{Child, Command, Stdio};
+use std::thread;
+use std::thread::sleep;
+use std::time::Duration;
+use workers::*;
 
 pub struct Runner<'a> {
     config: &'a Config,
@@ -25,7 +25,7 @@ impl<'a> Runner<'a> {
         Runner { config }
     }
 
-    pub fn run(&mut self, workers: &mut Vec<Box<Worker>>) -> FromanResult<()> {
+    pub fn run(&mut self, workers: &mut Vec<Box<dyn Worker>>) -> FromanResult<()> {
         let interval = Duration::from_secs(2);
         let redis = redis::Client::open(self.config.redis_url.as_str()).unwrap();
         let redis_conn = redis.get_connection()?;
@@ -42,7 +42,7 @@ impl<'a> Runner<'a> {
 
     fn work(
         &self,
-        worker: &mut Box<Worker>,
+        worker: &mut Box<dyn Worker>,
         redis_conn: &redis::Connection,
         color: &str,
         label_size: usize,
@@ -85,11 +85,11 @@ impl<'a> Runner<'a> {
         Ok(())
     }
 
-    fn get_label_size(&self, workers: &Vec<Box<Worker>>) -> usize {
+    fn get_label_size(&self, workers: &Vec<Box<dyn Worker>>) -> usize {
         workers.iter().map(|w| w.app().len()).max().unwrap()
     }
 
-    fn spawn(&self, worker: &Box<Worker>) -> Child {
+    fn spawn(&self, worker: &Box<dyn Worker>) -> Child {
         let (program, args) = worker.command_binary_and_args(&self.config.command_template);
         let path = match Path::new(&worker.absolute_path(&self.config.dir)).canonicalize() {
             Ok(p) => p,
