@@ -71,6 +71,7 @@ impl<'a> Runner<'a> {
                     if worker.terminate_at().unwrap() <= now {
                         log(worker.app(), label_size, color, "STOPPING\n");
                         worker.stop_process();
+                        log(worker.app(), label_size, color, "STOPPED\n");
                     }
                 } else {
                     let terminate_at = now + chrono::Duration::seconds(self.config.timeout as i64);
