@@ -79,7 +79,7 @@ checksum = "346b10598869bcdcd53cd166ecfb04ff8a4d5d7bb33e4ef4acbdb2a447ac3c73"
 
 [[package]]
 name = "froman"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "chrono",
  "clap",
