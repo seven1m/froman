@@ -35,7 +35,6 @@ cargo build --release
 Froman is configured with a `froman.yml` file like this:
 
 ```yaml
-command_template: 'bash -lc "%s"'
 apps:
   check-ins:
     path: ../check-ins
@@ -60,6 +59,18 @@ Run Froman:
 ```
 froman
 ```
+
+## Command Template
+
+If you need to execute a shell script in order to set up the environment for your command, you can
+use the top-level `command_template` config item, like so:
+
+```
+command_template: "bash -c 'export FOO=bar && exec %s'"
+```
+
+Just be sure to use `exec %s` to replace bash with the actual worker process. This will ensure that
+the kill signal is sent to the proper child when stopping a worker.
 
 ## Copyright
 
