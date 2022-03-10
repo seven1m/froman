@@ -2,6 +2,7 @@ use chrono::prelude::*;
 
 use cmdline_words_parser::StrExt;
 use errors::*;
+use nix::sys::signal::{kill, Signal};
 use redis;
 use redis::Commands;
 use std::process::Child;
@@ -29,19 +30,17 @@ pub trait Worker {
         (program, args)
     }
 
-    fn absolute_path(&self, config_dir: &str) -> String {
-        if self.path().starts_with("/") {
-            self.path().to_string()
-        } else {
-            format!("{}/{}", config_dir, self.path())
-        }
-    }
-
     fn process_id(&self) -> u32 {
         match *self.process() {
             Some(ref process) => process.id(),
             _ => 0u32,
         }
+    }
+
+    fn stop_process(&mut self) {
+        let pid = self.process_id() as i32;
+        kill(pid, Signal::SIGINT).unwrap();
+        self.set_process(None);
     }
 
     fn namespaced(&self, key: &str) -> String {

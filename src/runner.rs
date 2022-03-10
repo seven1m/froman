@@ -3,13 +3,10 @@ use chrono::prelude::*;
 use colors::*;
 use config::*;
 use errors::*;
-use nix::sys::signal::{kill, Signal};
 use redis;
 use std::io;
 use std::io::prelude::*;
 use std::io::Read;
-use std::path::Path;
-use std::process;
 use std::process::{Child, Command, Stdio};
 use std::thread;
 use std::thread::sleep;
@@ -73,8 +70,7 @@ impl<'a> Runner<'a> {
                 if worker.terminate_at().is_some() {
                     if worker.terminate_at().unwrap() <= now {
                         log(worker.app(), label_size, color, "STOPPING\n");
-                        kill(worker.process_id() as i32, Signal::SIGTERM).unwrap();
-                        worker.set_process(None)
+                        worker.stop_process();
                     }
                 } else {
                     let terminate_at = now + chrono::Duration::seconds(self.config.timeout as i64);
@@ -91,26 +87,19 @@ impl<'a> Runner<'a> {
 
     fn spawn(&self, worker: &Box<dyn Worker>) -> Child {
         let (program, args) = worker.command_binary_and_args(&self.config.command_template);
-        let path = match Path::new(&worker.absolute_path(&self.config.dir)).canonicalize() {
-            Ok(p) => p,
-            Err(_) => {
-                println!("Path `{}` could not be found!", self.config.dir);
-                process::exit(1);
-            }
-        };
-        let path_str = path.to_str().unwrap();
+        let working_directory = self.config.path_relative_to_config_dir(worker.path());
         Command::new(&program)
             .args(&args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
-            .current_dir(path_str)
+            .current_dir(working_directory)
             .env_remove("PATH") // rvm won't update the current ruby version if a ruby version is already present in the PATH
             .env_remove("RUBY_VERSION")
             .env_remove("RBENV_VERSION")
             .env_remove("RBENV_GEMSET_ALREADY")
             .env_remove("RBENV_DIR")
             .spawn()
-            .expect("failure")
+            .expect("failed to launch worker")
     }
 
     fn pipe_output<T: 'static + Read + Send>(
