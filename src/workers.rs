@@ -4,6 +4,7 @@ use cmdline_words_parser::StrExt;
 use errors::*;
 use nix::sys::signal::{kill, Signal};
 use nix::sys::wait::waitpid;
+use nix::unistd::Pid;
 use redis;
 use redis::Commands;
 use std::process::Child;
@@ -39,7 +40,7 @@ pub trait Worker {
     }
 
     fn stop_process(&mut self) {
-        let pid = self.process_id() as i32;
+        let pid = Pid::from_raw(self.process_id() as i32);
         kill(pid, Signal::SIGINT).unwrap();
         waitpid(pid, None).unwrap();
         self.set_process(None);
