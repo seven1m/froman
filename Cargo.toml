@@ -1,12 +1,12 @@
 [package]
 name = "froman"
-version = "1.5.0"
+version = "1.5.1"
 authors = ["Tim Morgan <tim@timmorgan.org>"]
 
 [dependencies]
 chrono = "0.3"
-clap = "2.11.0"
-nix = "0.8.0"
+clap = "3.2.22"
+nix = "0.20.2"
 redis = "0.7.0"
-yaml-rust = "0.3.3"
+yaml-rust = "0.4.1"
 cmdline_words_parser = "0.0.2"
