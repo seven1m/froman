@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.1 - Sep 20, 2022
+
+- Chore: Upgrade dependencies with Dependabot security alerts
+
 ## 1.5.0 - Mar 10, 2022
 
 - Fix for child process to exit so we don't have zombie processes
