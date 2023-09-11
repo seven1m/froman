@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.0 - Sep 11, 2023
+
+- Feat: add `db` option to worker config
+
 ## 1.5.1 - Sep 20, 2022
 
 - Chore: Upgrade dependencies with Dependabot security alerts

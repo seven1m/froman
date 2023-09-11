@@ -142,6 +142,7 @@ fn build_workers(config: &Yaml, debug: bool) -> Vec<Box<dyn Worker>> {
                                 .as_str()
                                 .unwrap_or("")
                                 .to_string(),
+                            db: worker_config["db"].as_i64().unwrap_or(0).to_string(),
                             command: worker_config["command"]
                                 .as_str()
                                 .expect("could not get start command as string")
@@ -159,6 +160,7 @@ fn build_workers(config: &Yaml, debug: bool) -> Vec<Box<dyn Worker>> {
                                 .as_str()
                                 .unwrap_or("")
                                 .to_string(),
+                            db: worker_config["db"].as_i64().unwrap_or(0).to_string(),
                             command: worker_config["command"]
                                 .as_str()
                                 .expect("could not get start command as string")

@@ -39,8 +39,8 @@ apps:
   check-ins:
     path: ../check-ins
     sidekiq:
-      namespace: check-ins-sidekiq-development
       command: bundle exec sidekiq
+      db: 12
   services:
     path: ../services
     resque:

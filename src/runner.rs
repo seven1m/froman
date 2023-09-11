@@ -24,12 +24,15 @@ impl<'a> Runner<'a> {
 
     pub fn run(&mut self, workers: &mut Vec<Box<dyn Worker>>) -> FromanResult<()> {
         let interval = Duration::from_secs(2);
-        let redis = redis::Client::open(self.config.redis_url.as_str()).unwrap();
-        let redis_conn = redis.get_connection()?;
         let label_size = self.get_label_size(&workers);
         println!("Froman monitoring queues...");
         loop {
             for (worker_index, mut worker) in workers.iter_mut().enumerate() {
+                let redis = redis::Client::open(
+                    format!("{}{}", self.config.redis_url.as_str(), worker.db()).as_str(),
+                )
+                .unwrap();
+                let redis_conn = redis.get_connection()?;
                 let color = COLORS[worker_index % COLORS.len()];
                 self.work(&mut worker, &redis_conn, color, label_size)?;
             }

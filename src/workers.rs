@@ -14,6 +14,7 @@ pub trait Worker {
     fn path(&self) -> &String;
     fn command(&self) -> &String;
     fn kind(&self) -> &str;
+    fn db(&self) -> &String;
     fn work_to_do(&self, _: &redis::Connection) -> FromanResult<bool>;
     fn work_being_done(&self, _: &redis::Connection) -> FromanResult<bool>;
     fn process(&self) -> &Option<Child>;
@@ -60,6 +61,7 @@ pub struct Sidekiq {
     pub app: String,
     pub path: String,
     pub namespace: String,
+    pub db: String,
     pub command: String,
     pub process: Option<Child>,
     pub terminate_at: Option<DateTime<Local>>,
@@ -80,6 +82,10 @@ impl Worker for Sidekiq {
 
     fn kind(&self) -> &str {
         "sidekiq"
+    }
+
+    fn db(&self) -> &String {
+        &self.db
     }
 
     fn work_to_do(&self, redis_conn: &redis::Connection) -> FromanResult<bool> {
@@ -133,6 +139,7 @@ impl Worker for Sidekiq {
 pub struct Resque {
     pub app: String,
     pub path: String,
+    pub db: String,
     pub namespace: String,
     pub command: String,
     pub process: Option<Child>,
@@ -150,6 +157,10 @@ impl Worker for Resque {
 
     fn command(&self) -> &String {
         &self.command
+    }
+
+    fn db(&self) -> &String {
+        &self.db
     }
 
     fn kind(&self) -> &str {
