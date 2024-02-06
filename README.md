@@ -21,9 +21,9 @@ This might be super useful if you are using Vagrant or VM for development and wa
 
 ## Installation
 
-If you're on Mac, you can download the binary [here](https://github.com/seven1m/froman/releases).
+You can download the binary [here](https://github.com/seven1m/froman/releases).
 
-For other platforms, you'll need to build with Rust:
+If your platform binary is not available there, you'll need to build with Rust:
 
 ```
 curl https://sh.rustup.rs -sSf | sh
