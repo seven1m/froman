@@ -1,5 +1,7 @@
 # Froman
 
+**NO LONGER MAINTAINED**
+
 Run Sidekiq/Resque workers for multiple apps only when there is work to be done. 
 
 You can use it in place of Foreman if you need to manage several instances of Sidekiq and/or Resque and don't necessarily need them all to run at once.
